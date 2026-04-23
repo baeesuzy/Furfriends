@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PawTrack - The Playful Guardian</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- Leaflet for real GIS map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary-fixed-dim": "#44ddc1",
+          "error": "#ba1a1a",
+          "outline": "#6c7a76",
+          "on-error": "#ffffff",
+          "on-primary-fixed-variant": "#005145",
+          "surface-container-high": "#e2e9ec",
+          "primary-fixed": "#68fadd",
+          "on-secondary": "#ffffff",
+          "surface-container-lowest": "#ffffff",
+          "on-primary-container": "#00473c",
+          "background": "#f4fafd",
+          "on-tertiary-fixed-variant": "#574500",
+          "inverse-surface": "#2b3234",
+          "surface-container-low": "#eef5f7",
+          "on-primary-fixed": "#00201a",
+          "on-background": "#161d1f",
+          "surface-bright": "#f4fafd",
+          "primary": "#006b5c",
+          "secondary-container": "#fd6e60",
+          "on-surface": "#161d1f",
+          "on-tertiary": "#ffffff",
+          "on-surface-variant": "#3c4a46",
+          "tertiary-fixed-dim": "#ebc23e",
+          "surface-container": "#e8eff1",
+          "surface-dim": "#d4dbdd",
+          "secondary-fixed": "#ffdad5",
+          "on-tertiary-fixed": "#241a00",
+          "on-tertiary-container": "#4d3d00",
+          "on-error-container": "#93000a",
+          "inverse-primary": "#44ddc1",
+          "on-secondary-container": "#6d0005",
+          "error-container": "#ffdad6",
+          "tertiary-fixed": "#ffe087",
+          "tertiary": "#735c00",
+          "outline-variant": "#bbcac4",
+          "secondary": "#ac332a",
+          "tertiary-container": "#cca620",
+          "primary-container": "#00bfa5",
+          "surface-tint": "#006b5c",
+          "inverse-on-surface": "#ebf2f4",
+          "on-secondary-fixed": "#410001",
+          "surface": "#f4fafd",
+          "surface-container-highest": "#dde4e6",
+          "on-primary": "#ffffff",
+          "on-secondary-fixed-variant": "#8b1a16",
+          "secondary-fixed-dim": "#ffb4aa",
+          "surface-variant": "#dde4e6"
+        },
+        "borderRadius": {
+          "DEFAULT": "1rem",
+          "lg": "2rem",
+          "xl": "3rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "xs": "4px","md": "16px","lg": "24px","gutter": "20px","sm": "8px",
+          "xl": "40px","container-max": "1200px","xxl": "64px","unit": "4px"
+        },
+        "fontFamily": {
+          "headline-md": ["Plus Jakarta Sans"],
+          "label-sm": ["Plus Jakarta Sans"],
+          "headline-lg": ["Plus Jakarta Sans"],
+          "headline-xl": ["Plus Jakarta Sans"],
+          "body-md": ["Plus Jakarta Sans"],
+          "body-lg": ["Plus Jakarta Sans"],
+          "label-md": ["Plus Jakarta Sans"]
+        },
+        "fontSize": {
+          "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+          "label-sm": ["12px", {"lineHeight": "1.2", "fontWeight": "700"}],
+          "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+          "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+          "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+          "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+          "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "600"}]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 191, 165, 0.1);
+  }
+  .dark .glass-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(0, 191, 165, 0.2);
+  }
+
+  /* ── Dark mode overrides ── */
+  .dark body { background-color: #0f172a; color: #e2e8f0; }
+  .dark .bg-background { background-color: #0f172a !important; }
+  .dark .bg-surface { background-color: #1e293b !important; }
+  .dark .bg-surface-container-low { background-color: #1e293b !important; }
+  .dark .bg-surface-container { background-color: #1e293b !important; }
+  .dark .bg-surface-container-high { background-color: #334155 !important; }
+  .dark .text-on-background { color: #e2e8f0 !important; }
+  .dark .text-on-surface { color: #e2e8f0 !important; }
+  .dark .text-on-surface-variant { color: #94a3b8 !important; }
+  .dark .border-outline-variant { border-color: #334155 !important; }
+
+  /* Pulse animation for live dot */
+  @keyframes pulse-ring {
+    0%   { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  .pulse-ring::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: #00bfa5;
+    animation: pulse-ring 1.6s ease-out infinite;
+  }
+
+  /* Phone frame glow */
+  .phone-glow {
+    box-shadow: 0 0 0 1px rgba(0,191,165,0.3), 0 30px 80px rgba(0,107,92,0.35), 0 0 60px rgba(0,191,165,0.15);
+  }
+
+  /* Map tile dark mode tint */
+  .dark .leaflet-tile {
+    filter: invert(0.85) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+  }
+
+  /* Signal bars animation */
+  @keyframes bar-grow {
+    0%,100% { transform: scaleY(0.4); }
+    50%     { transform: scaleY(1); }
+  }
+  .signal-bar:nth-child(1) { animation: bar-grow 1.2s ease-in-out 0s   infinite; }
+  .signal-bar:nth-child(2) { animation: bar-grow 1.2s ease-in-out 0.2s infinite; }
+  .signal-bar:nth-child(3) { animation: bar-grow 1.2s ease-in-out 0.4s infinite; }
+  .signal-bar:nth-child(4) { animation: bar-grow 1.2s ease-in-out 0.6s infinite; }
+
+  /* Scroll-reveal */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  html { scroll-behavior: smooth; }
+
+  /* ── Splash screen ── */
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #006b5c;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    transition: opacity 0.55s cubic-bezier(0.4,0,0.2,1), transform 0.55s cubic-bezier(0.4,0,0.2,1);
+  }
+  #splash.hide {
+    opacity: 0;
+    transform: scale(1.04);
+    pointer-events: none;
+  }
+
+  /* Ripple rings */
+  @keyframes splash-ripple {
+    0%   { transform: scale(0.6); opacity: 0.7; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+  .splash-ring {
+    position: absolute;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    animation: splash-ripple 2s ease-out infinite;
+  }
+  .splash-ring:nth-child(2) { animation-delay: 0.5s; }
+  .splash-ring:nth-child(3) { animation-delay: 1s; }
+
+  /* Paw icon bounce-in */
+  @keyframes splash-paw-in {
+    0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+    60%  { transform: scale(1.18) rotate(6deg); opacity: 1; }
+    80%  { transform: scale(0.93) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  #splash-paw {
+    position: relative;
+    z-index: 1;
+    animation: splash-paw-in 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+  }
+
+  /* Wordmark slide-up */
+  @keyframes splash-text-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  #splash-brand {
+    animation: splash-text-in 0.5s ease 0.55s both;
+  }
+  #splash-tagline {
+    animation: splash-text-in 0.5s ease 0.75s both;
+  }
+
+  /* Progress bar */
+  @keyframes splash-bar {
+    from { width: 0%; }
+    to   { width: 100%; }
+  }
+  #splash-bar {
+    animation: splash-bar 1.8s linear 0.2s both;
+  }
+
+  /* Dot trail below icon */
+  @keyframes splash-dot-pop {
+    0%, 100% { transform: scale(0.4); opacity: 0.3; }
+    50%       { transform: scale(1); opacity: 1; }
+  }
+  .splash-dot { animation: splash-dot-pop 1s ease-in-out infinite; }
+  .splash-dot:nth-child(1) { animation-delay: 0s; }
+  .splash-dot:nth-child(2) { animation-delay: 0.18s; }
+  .splash-dot:nth-child(3) { animation-delay: 0.36s; }
+</style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container transition-colors duration-300">
+
+<!-- ════════════════════════════ SPLASH ════════════════════════════ -->
+<div id="splash" role="status" aria-label="Loading PawTrack">
+  <div style="position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div id="splash-paw" style="width:80px;height:80px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.3);">
+      <span class="material-symbols-outlined" style="font-size:42px;color:#ffffff;font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 48;">pets</span>
+    </div>
+  </div>
+  <div id="splash-brand" style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+    <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:36px;font-weight:800;color:#ffffff;letter-spacing:-0.03em;line-height:1;">PawTrack</span>
+  </div>
+  <p id="splash-tagline" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:500;color:rgba(255,255,255,0.7);letter-spacing:0.12em;text-transform:uppercase;margin-top:6px;">The Playful Guardian</p>
+  <div style="display:flex;gap:6px;margin-top:20px;">
+    <div class="splash-dot" style="width:7px;height:7px;background:rgba(255,255,255,0.6);border-radius:50%;"></div>
+    <div class="splash-dot" style="width:7px;height:7px;background:rgba(255,255,255,0.6);border-radius:50%;"></div>
+    <div class="splash-dot" style="width:7px;height:7px;background:rgba(255,255,255,0.6);border-radius:50%;"></div>
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.15);">
+    <div id="splash-bar" style="height:100%;background:rgba(255,255,255,0.7);border-radius:0 2px 2px 0;width:0%;"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ NAV ════════════════════════════ -->
+<nav id="navbar" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-teal-50/50 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,191,165,0.04)] transition-colors duration-300">
+  <div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+    <a href="#hero" class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-teal-600 dark:text-teal-400 text-3xl">pets</span>
+      <span class="text-2xl font-black text-teal-600 dark:text-teal-400 tracking-tighter">PawTrack</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8">
+      <a class="nav-link font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-teal-500 transition-colors" href="#breeder-match">Breeder Match</a>
+      <a class="nav-link font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-teal-500 transition-colors" href="#vet-network">Vet Network</a>
+      <a class="nav-link font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-teal-500 transition-colors" href="#gis-tracking">GIS Tracking</a>
+      <a class="nav-link font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-teal-500 transition-colors" href="#features">Features</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <button id="dark-toggle" class="p-2 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-full transition-all active:scale-95 duration-200" aria-label="Toggle dark mode">
+        <span id="dark-icon" class="material-symbols-outlined">dark_mode</span>
+      </button>
+      <button class="bg-primary text-on-primary px-6 py-2.5 rounded-full font-label-md hover:shadow-lg transition-all active:scale-95">
+        Get Started
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="pt-24 space-y-xxl">
+
+  <!-- ════════════════════════════ HERO ════════════════════════════ -->
+  <section id="hero" class="px-6 max-w-7xl mx-auto">
+    <div class="relative overflow-hidden rounded-xl aspect-[21/9] flex items-center p-xl group">
+      <img class="absolute inset-0 w-full h-full object-cover transform scale-105 group-hover:scale-100 transition-transform duration-1000"
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtZWz2uOtanQVA6faZsAmOUH0OGSTa62brmGRVpkVLVkQf9wBHtEw6sP1zLBJ3_UFONRQ8Wj8LJRDRxsV0vf_gBG_qji4O86Ww5dSNucmz6Ah4JGeAuPULI_ARSZ0Y1V4ZkvNbmpkI-Iq2HVgFXgnjePGAIx6nzNEkQA20-dbWnpUIZe-MpTU8BD8w8o7aKo24Q5V8TEpz3MWQU6VaLoT7GEtwnD13h3UvPJg2lFr9a5scQpm3IwCeP35yGiC_sbDNOv3oGOnAaw"
+        alt="Happy golden retriever puppy running through a sun-drenched wildflower meadow"/>
+      <div class="absolute inset-0 bg-gradient-to-r from-on-primary-fixed/80 to-transparent"></div>
+      <div class="relative z-10 max-w-2xl space-y-lg text-white">
+        <h1 class="font-headline-xl text-headline-xl">Precision Tracking for Your Playful Companion</h1>
+        <p class="font-body-lg text-body-lg opacity-90">Beyond GPS—monitor vitals, connect with expert breeders, and consult top vets all in one intuitive platform.</p>
+        <div class="flex gap-4">
+          <a href="#features" class="bg-primary-container text-on-primary-container px-8 py-4 rounded-full font-label-md flex items-center gap-2 hover:bg-primary-fixed transition-colors">
+            Discover Features <span class="material-symbols-outlined">arrow_forward</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ BREEDER MATCH ═══════════════════════ -->
+  <section id="breeder-match" class="px-6 max-w-7xl mx-auto space-y-xl reveal">
+    <div class="flex flex-col items-center text-center max-w-3xl mx-auto space-y-md">
+      <span class="bg-secondary-fixed text-on-secondary-fixed-variant px-4 py-1 rounded-full font-label-sm uppercase tracking-widest">Industry Standards</span>
+      <h2 class="font-headline-lg text-headline-lg">Find Your Perfect Match</h2>
+      <p class="font-body-lg text-on-surface-variant">We partner exclusively with certified professional breeders specializing in high-health, specialty lines. Every breeder on PawTrack is a market leader in ethical breeding practices.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+      <!-- Breeder Card 1 -->
+      <div class="glass-card p-lg rounded-lg space-y-md hover:shadow-xl transition-all duration-300 group">
+        <div class="relative h-64 overflow-hidden rounded-md mb-md">
+          <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIlUtUwy6TZYY0YCaqFG9cdsc9Zvz1Q3rqCdCmJCCm9_eCODzT3Hxrmv1eUVYYr79f4IYkm0haov6NwfBRVrt__dLrR1V7DI-KPA395tJ_YYrpN7AUhd_1_aehxoMFHGedMV9EPb8aCSMO-vDi5mU0SphLQLBBs0tfxFUtLqKs2y_osC__FGfOoCNTP74lMz4pwkuP-voHvA7KsPR8_a4UlVvtRd2iKL-0c2-vlxnT0KB5aoaZUujAK3G7azqi1HO-WvvccT4fkw"
+            alt="Professional breeder holding a pedigree Samoyed puppy"/>
+          <div class="absolute top-4 right-4 bg-primary text-white text-[10px] px-2 py-1 rounded-full font-bold uppercase">Gold Certified</div>
+        </div>
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-headline-md text-headline-md">Alpine Samoyeds</h3>
+            <p class="text-on-surface-variant font-label-sm">Specialty: Working &amp; Show Lines</p>
+          </div>
+          <div class="text-right">
+            <span class="text-primary font-bold">5.0</span>
+            <span class="material-symbols-outlined text-primary text-sm">star</span>
+          </div>
+        </div>
+        <ul class="space-y-sm text-sm text-on-surface-variant">
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">verified</span> Comprehensive Health Screening</li>
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">psychology</span> Early Neurological Stimulation</li>
+        </ul>
+        <button class="w-full border border-primary text-primary py-3 rounded-full font-label-md hover:bg-primary/5 transition-colors">View Available Litters</button>
+      </div>
+      <!-- Breeder Card 2 -->
+      <div class="glass-card p-lg rounded-lg space-y-md hover:shadow-xl transition-all duration-300 group">
+        <div class="relative h-64 overflow-hidden rounded-md mb-md">
+          <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNMu0xsHWbq4pEZ7M09nLp6PL4vHnx41UG1CVtzxbEZzzwoIw-G0pI1mP-AsI5xbQwNzSl37ggXrvFTsMbdAGnAt3xFSJM7Y6eRnRql09b5EVnkDGvw5zlJooWaCSJXypy34RoxM_yVrHkHmhsxmTEl9u3_nQrM98U-Lghw6vq87-r39t0GnzNGohIteksBdKOr6QaMITImWROaiKeWRs660rtbdqdAWX6C5It0LvN75qM1xTfBomFsp4-f8W5zeIGq-WfV6kCRQ"
+            alt="A litter of high-end French Bulldog puppies"/>
+          <div class="absolute top-4 right-4 bg-primary text-white text-[10px] px-2 py-1 rounded-full font-bold uppercase">Pedigree Pro</div>
+        </div>
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-headline-md text-headline-md">Noble Frenchies</h3>
+            <p class="text-on-surface-variant font-label-sm">Specialty: Compact Athletics</p>
+          </div>
+          <div class="text-right">
+            <span class="text-primary font-bold">4.9</span>
+            <span class="material-symbols-outlined text-primary text-sm">star</span>
+          </div>
+        </div>
+        <ul class="space-y-sm text-sm text-on-surface-variant">
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">genetics</span> Full DNA Ancestry Logs</li>
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">social_distance</span> Integrated Socialization Phase</li>
+        </ul>
+        <button class="w-full border border-primary text-primary py-3 rounded-full font-label-md hover:bg-primary/5 transition-colors">Request Catalog</button>
+      </div>
+      <!-- Breeder Card 3 -->
+      <div class="glass-card p-lg rounded-lg space-y-md hover:shadow-xl transition-all duration-300 group">
+        <div class="relative h-64 overflow-hidden rounded-md mb-md">
+          <img class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEvXUKSq-GKmnlcJcyG9ntyOBXtsi8Tzf0CJAE4v5yj0VFcVg2qfXXahy4k5fkEuwXmjhZvNFCnl5b5g2z9rROMlyFRGBgT7mgM0ITrJJU7OItMPSIR6sI79LHAUfGB4IqlCN0LNqH9b7PlovdxKNZCmRZJ0E9gxMIxRes6Nwb5Em5NoHLhF3bK1aNNl9eScFSUgLPh8SC9KLVTRSAWkfroX5pEWNHffo3-aYbxZqZ1cTln92N1Mc54t3Xb5y5B3XT-Qn3Zm2oFA"
+            alt="Elegant Doberman Pinscher at a modern training facility"/>
+          <div class="absolute top-4 right-4 bg-primary text-white text-[10px] px-2 py-1 rounded-full font-bold uppercase">Vet Network Partner</div>
+        </div>
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-headline-md text-headline-md">Guardian Labs</h3>
+            <p class="text-on-surface-variant font-label-sm">Specialty: Service &amp; Support</p>
+          </div>
+          <div class="text-right">
+            <span class="text-primary font-bold">5.0</span>
+            <span class="material-symbols-outlined text-primary text-sm">star</span>
+          </div>
+        </div>
+        <ul class="space-y-sm text-sm text-on-surface-variant">
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">school</span> Foundation Obedience Trained</li>
+          <li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm">monitor_heart</span> Real-time Health Data via PawTrack</li>
+        </ul>
+        <button class="w-full border border-primary text-primary py-3 rounded-full font-label-md hover:bg-primary/5 transition-colors">Direct Inquiry</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ VET NETWORK ════════════════════════ -->
+  <section id="vet-network" class="bg-surface-container-low py-xxl dark:bg-slate-900">
+    <div class="px-6 max-w-7xl mx-auto space-y-xl">
+      <!-- Discount Banner -->
+      <div class="relative overflow-hidden bg-primary rounded-lg p-lg md:p-xl text-on-primary flex flex-col md:flex-row items-center justify-between gap-lg shadow-xl reveal">
+        <div class="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-primary-fixed/20 rounded-full blur-3xl"></div>
+        <div class="relative z-10 space-y-md flex-1">
+          <div class="flex items-center gap-3">
+            <span class="bg-primary-container text-on-primary-container px-3 py-1 rounded-full font-label-sm uppercase tracking-wider">Welcome Offer</span>
+            <span class="text-white font-bold flex items-center gap-1"><span class="material-symbols-outlined text-lg">verified</span> Certified Breeders Partner</span>
+          </div>
+          <h2 class="font-headline-xl text-headline-xl">Your First Vet Visit is on Us!</h2>
+          <p class="text-body-lg opacity-90 max-w-xl">Just brought home your new companion from a PawTrack breeder? Enjoy a <span class="font-bold underline">100% Free Virtual Consultation</span> or $50 off your first in-person clinical exam.</p>
+        </div>
+        <div class="relative z-10 flex flex-col gap-4 min-w-[240px]">
+          <div class="bg-white/10 backdrop-blur-md p-md rounded-md border border-white/20 text-center">
+            <p class="text-xs uppercase tracking-widest opacity-80 mb-1">Use Promo Code</p>
+            <p class="font-headline-md text-2xl tracking-tighter">NEWPAWS2024</p>
+          </div>
+          <button class="bg-white text-primary px-8 py-3 rounded-full font-label-md hover:shadow-lg hover:scale-105 transition-all w-full">Claim Discount</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-xxl items-start reveal">
+        <div class="space-y-lg">
+          <div class="space-y-md">
+            <span class="text-primary font-label-md uppercase tracking-widest font-bold">Professional Vet Network</span>
+            <h2 class="font-headline-xl text-headline-xl">Expert Care, Personalized Care</h2>
+            <p class="font-body-lg text-on-surface-variant">Our network includes over 2,500 board-certified veterinarians across the country. Seamlessly manage your pet's healthcare journey from adoption to senior wellness.</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+            <div class="bg-white dark:bg-slate-800 p-lg rounded-md shadow-sm border border-outline-variant/30 space-y-sm group hover:border-primary transition-colors">
+              <span class="material-symbols-outlined text-primary text-3xl">video_chat</span>
+              <h4 class="font-headline-md text-headline-md text-lg">Virtual Check-ups</h4>
+              <p class="text-body-md text-sm text-on-surface-variant">Video consultations for behavior, nutrition, or minor symptoms without the stress of travel.</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-lg rounded-md shadow-sm border border-outline-variant/30 space-y-sm group hover:border-primary transition-colors">
+              <span class="material-symbols-outlined text-primary text-3xl">medical_services</span>
+              <h4 class="font-headline-md text-headline-md text-lg">Clinic Visits</h4>
+              <p class="text-body-md text-sm text-on-surface-variant">Direct booking with high-rated local clinics. Your pet's records follow you automatically.</p>
+            </div>
+          </div>
+          <div class="p-lg bg-surface rounded-lg border-l-4 border-primary dark:bg-slate-800 space-y-md">
+            <h5 class="font-bold">Next-Step Guidance</h5>
+            <p class="text-sm text-on-surface-variant">Charlie's next DHPP booster is due in 12 days. We recommend booking a local clinic visit for a physical exam.</p>
+            <button class="text-primary font-bold text-sm flex items-center gap-1 hover:gap-2 transition-all">Setup Auto-Reminders <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+          </div>
+        </div>
+        <!-- Care Dashboard -->
+        <div class="relative">
+          <div class="bg-white dark:bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-teal-50 dark:border-slate-700">
+            <div class="bg-surface-container dark:bg-slate-700 p-lg flex justify-between items-center">
+              <div>
+                <h3 class="font-headline-md text-xl">Care Dashboard</h3>
+                <p class="text-xs text-on-surface-variant">Manage all appointments for Charlie</p>
+              </div>
+              <div class="flex bg-white dark:bg-slate-900 rounded-full p-1 border border-outline-variant/30">
+                <button class="px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white">Calendar</button>
+                <button class="px-4 py-1.5 rounded-full text-xs font-bold text-on-surface-variant hover:bg-slate-100 dark:hover:bg-slate-800">History</button>
+              </div>
+            </div>
+            <div class="p-lg space-y-lg">
+              <div class="space-y-md">
+                <div class="flex justify-between items-center">
+                  <p class="font-bold text-lg">October 2024</p>
+                  <div class="flex gap-1">
+                    <button class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><span class="material-symbols-outlined">chevron_left</span></button>
+                    <button class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><span class="material-symbols-outlined">chevron_right</span></button>
+                  </div>
+                </div>
+                <div class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700 pb-2">
+                  <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1">
+                  <div class="h-10 flex items-center justify-center text-sm text-slate-300">30</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">1</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">2</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md relative">3<div class="absolute bottom-1 w-1 h-1 bg-secondary rounded-full"></div></div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">4</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">5</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">6</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-bold bg-primary text-white rounded-md shadow-md">7</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">8</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">9</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md relative">10<div class="absolute bottom-1 w-1 h-1 bg-primary rounded-full"></div></div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">11</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">12</div>
+                  <div class="h-10 flex items-center justify-center text-sm font-medium hover:bg-primary/5 cursor-pointer rounded-md">13</div>
+                </div>
+              </div>
+              <div class="space-y-sm">
+                <div class="flex justify-between items-center">
+                  <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Appointments</p>
+                  <button class="text-primary text-xs font-bold">+ New Booking</button>
+                </div>
+                <div class="space-y-2">
+                  <div class="bg-surface-container-low dark:bg-slate-700/50 p-md rounded-md flex items-center gap-4 border border-outline-variant/20">
+                    <div class="bg-primary w-1 h-10 rounded-full"></div>
+                    <div class="flex-1">
+                      <p class="font-bold text-sm">Dr. Sarah Jenkins</p>
+                      <p class="text-[11px] text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">videocam</span> Virtual Wellness • 10:30 AM</p>
+                    </div>
+                    <div class="flex gap-2">
+                      <button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+                      <button class="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-bold">Join Call</button>
+                    </div>
+                  </div>
+                  <div class="bg-surface-container-low dark:bg-slate-700/50 p-md rounded-md flex items-center gap-4 border border-outline-variant/20 opacity-75">
+                    <div class="bg-secondary w-1 h-10 rounded-full"></div>
+                    <div class="flex-1">
+                      <p class="font-bold text-sm text-slate-500">Green Valley Clinic</p>
+                      <p class="text-[11px] text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">location_on</span> In-Person Booster • Oct 10</p>
+                    </div>
+                    <button class="text-[10px] font-bold text-on-surface-variant">View Map</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-primary p-4 text-center">
+              <button class="text-white font-bold text-sm flex items-center justify-center gap-2 w-full">
+                <span class="material-symbols-outlined">add_circle</span> Book Your Next Appointment
+              </button>
+            </div>
+          </div>
+          <div class="absolute -top-10 -right-10 w-40 h-40 bg-primary-container/20 rounded-full blur-3xl"></div>
+          <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-secondary-container/20 rounded-full blur-3xl"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ GIS TRACKING ════════════════════════ -->
+  <section id="gis-tracking" class="px-6 max-w-7xl mx-auto space-y-xl">
+    <div class="flex flex-col items-center text-center max-w-3xl mx-auto space-y-md reveal">
+      <span class="bg-primary/10 text-primary px-4 py-1 rounded-full font-label-sm uppercase tracking-widest">Live Prototype</span>
+      <h2 class="font-headline-lg text-headline-lg">Real-Time GIS Pet Tracking</h2>
+      <p class="font-body-lg text-on-surface-variant">
+        Our mobile-first tracking interface puts your pet's exact coordinates on a live OpenStreetMap. See the exact prototype we've built — showing Justin's location near Panabo City, Davao del Norte.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center reveal">
+
+      <!-- Phone mockup -->
+      <div class="flex justify-center">
+        <div class="relative">
+          <!-- Ambient glow blobs -->
+          <div class="absolute -inset-8 bg-primary/20 rounded-full blur-3xl opacity-60"></div>
+          <div class="absolute -bottom-6 -right-6 w-32 h-32 bg-teal-300/30 rounded-full blur-2xl"></div>
+
+          <!-- Phone frame -->
+          <div class="relative phone-glow bg-slate-900 rounded-[2.8rem] p-[10px] w-[280px]">
+            <!-- Notch -->
+            <div class="absolute top-[14px] left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-full z-20 flex items-center justify-center gap-2">
+              <div class="w-2 h-2 bg-slate-700 rounded-full"></div>
+              <div class="w-3 h-3 bg-slate-800 rounded-full border border-slate-700"></div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-[2.2rem] overflow-hidden h-[560px] flex flex-col">
+              <!-- Status bar -->
+              <div class="bg-white dark:bg-slate-800 px-5 pt-8 pb-2 flex justify-between items-center text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                <span>9:41</span>
+                <div class="flex items-center gap-1">
+                  <!-- Signal bars -->
+                  <div class="flex items-end gap-[2px] h-3">
+                    <div class="signal-bar w-[3px] h-[4px] bg-slate-700 dark:bg-slate-300 rounded-sm origin-bottom"></div>
+                    <div class="signal-bar w-[3px] h-[6px] bg-slate-700 dark:bg-slate-300 rounded-sm origin-bottom"></div>
+                    <div class="signal-bar w-[3px] h-[8px] bg-slate-700 dark:bg-slate-300 rounded-sm origin-bottom"></div>
+                    <div class="signal-bar w-[3px] h-[10px] bg-slate-700 dark:bg-slate-300 rounded-sm origin-bottom"></div>
+                  </div>
+                  <span class="text-[9px] font-black text-teal-600">5G</span>
+                  <!-- Battery -->
+                  <div class="flex items-center gap-0.5">
+                    <div class="w-5 h-2.5 border border-slate-400 rounded-[3px] flex items-center px-[2px]">
+                      <div class="h-1.5 bg-green-500 rounded-sm" style="width:80%"></div>
+                    </div>
+                    <div class="w-[3px] h-1.5 bg-slate-400 rounded-r-sm"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Header -->
+              <div class="px-4 pb-2 flex justify-between items-center">
+                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
+                  <span class="material-symbols-outlined text-[16px] text-slate-600 dark:text-slate-300">arrow_back_ios</span>
+                </button>
+                <span class="text-xs font-bold text-slate-700 dark:text-white">Jose Abad Santos Street</span>
+                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700">
+                  <span class="material-symbols-outlined text-[16px] text-teal-600">location_on</span>
+                </button>
+              </div>
+
+              <!-- MAP (real Leaflet) -->
+              <div id="pet-map" class="flex-1 relative z-0" style="min-height:280px;"></div>
+
+              <!-- Bottom info panel -->
+              <div class="bg-white dark:bg-slate-800 px-4 pt-3 pb-2 space-y-2 border-t border-slate-100 dark:border-slate-700">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-teal-600 text-[16px]">location_on</span>
+                    <div>
+                      <p class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Coordinates</p>
+                      <p class="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200">7.30845, 125.68490</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1 text-[9px] font-black text-teal-600">
+                    <div class="flex items-end gap-[2px] h-3">
+                      <div class="w-[2px] h-[4px] bg-teal-500 rounded-sm"></div>
+                      <div class="w-[2px] h-[6px] bg-teal-500 rounded-sm"></div>
+                      <div class="w-[2px] h-[8px] bg-teal-500 rounded-sm"></div>
+                      <div class="w-[2px] h-[10px] bg-teal-500 rounded-sm"></div>
+                    </div>
+                    5G
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-teal-600 text-[16px]">pets</span>
+                  <span class="text-xs font-bold text-slate-800 dark:text-white">Justin</span>
+                </div>
+                <!-- Track button -->
+                <button class="w-full bg-teal-600 hover:bg-teal-500 active:scale-95 transition-all text-white py-2.5 rounded-xl text-xs font-black tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-teal-600/30">
+                  <span class="material-symbols-outlined text-[16px]">my_location</span>
+                  Track Your Pet
+                </button>
+                <div class="flex items-center justify-center gap-1.5 pb-1">
+                  <div class="relative w-2 h-2">
+                    <div class="w-2 h-2 bg-teal-500 rounded-full pulse-ring"></div>
+                  </div>
+                  <span class="text-[10px] text-teal-600 font-bold">Active · 5 Minutes Ago</span>
+                </div>
+              </div>
+
+              <!-- Bottom nav bar -->
+              <div class="bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 px-6 py-2 flex justify-between items-center">
+                <button class="flex flex-col items-center gap-0.5"><span class="material-symbols-outlined text-[20px] text-teal-600">home</span></button>
+                <button class="flex flex-col items-center gap-0.5"><span class="material-symbols-outlined text-[20px] text-slate-400">favorite</span></button>
+                <button class="w-9 h-9 bg-teal-600 rounded-full flex items-center justify-center shadow-md shadow-teal-600/30"><span class="material-symbols-outlined text-[20px] text-white">add</span></button>
+                <button class="flex flex-col items-center gap-0.5"><span class="material-symbols-outlined text-[20px] text-slate-400">chat_bubble</span></button>
+                <button class="flex flex-col items-center gap-0.5"><span class="material-symbols-outlined text-[20px] text-slate-400">person</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature explanation -->
+      <div class="space-y-8">
+        <div class="space-y-3">
+          <span class="text-primary font-label-md uppercase tracking-widest font-bold">GIS-Powered Intelligence</span>
+          <h3 class="font-headline-xl text-headline-xl">Know Exactly Where Your Pet Is</h3>
+          <p class="font-body-lg text-on-surface-variant">
+            Our prototype uses real OpenStreetMap data combined with 5G-enabled collar hardware. The result: sub-meter accuracy with live coordinate updates every 5 seconds — right on your phone.
+          </p>
+        </div>
+
+        <!-- Feature tiles -->
+        <div class="grid grid-cols-2 gap-md">
+          <div class="bg-surface-container dark:bg-slate-800 rounded-xl p-lg space-y-sm hover:shadow-md transition-all group border border-transparent hover:border-primary/20">
+            <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <span class="material-symbols-outlined text-primary">my_location</span>
+            </div>
+            <h4 class="font-bold text-sm">Live GPS Ping</h4>
+            <p class="text-xs text-on-surface-variant">Coordinate broadcast every 5 seconds via 5G.</p>
+          </div>
+          <div class="bg-surface-container dark:bg-slate-800 rounded-xl p-lg space-y-sm hover:shadow-md transition-all group border border-transparent hover:border-primary/20">
+            <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <span class="material-symbols-outlined text-primary">map</span>
+            </div>
+            <h4 class="font-bold text-sm">OpenStreetMap</h4>
+            <p class="text-xs text-on-surface-variant">Detailed local map — streets, landmarks, parks.</p>
+          </div>
+          <div class="bg-surface-container dark:bg-slate-800 rounded-xl p-lg space-y-sm hover:shadow-md transition-all group border border-transparent hover:border-primary/20">
+            <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <span class="material-symbols-outlined text-primary">fence</span>
+            </div>
+            <h4 class="font-bold text-sm">Geo-Fencing</h4>
+            <p class="text-xs text-on-surface-variant">Draw safe zones and get instant exit alerts.</p>
+          </div>
+          <div class="bg-surface-container dark:bg-slate-800 rounded-xl p-lg space-y-sm hover:shadow-md transition-all group border border-transparent hover:border-primary/20">
+            <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <span class="material-symbols-outlined text-primary">route</span>
+            </div>
+            <h4 class="font-bold text-sm">Trail History</h4>
+            <p class="text-xs text-on-surface-variant">Replay your pet's full day route on the map.</p>
+          </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div class="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-lg grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p class="text-2xl font-black text-primary">±0.8m</p>
+            <p class="text-xs text-on-surface-variant font-medium">GPS Accuracy</p>
+          </div>
+          <div class="border-x border-primary/20">
+            <p class="text-2xl font-black text-primary">5s</p>
+            <p class="text-xs text-on-surface-variant font-medium">Update Rate</p>
+          </div>
+          <div>
+            <p class="text-2xl font-black text-primary">5G</p>
+            <p class="text-xs text-on-surface-variant font-medium">Connectivity</p>
+          </div>
+        </div>
+
+        <a href="#features" class="inline-flex items-center gap-2 bg-primary text-on-primary px-7 py-3.5 rounded-full font-label-md hover:shadow-xl hover:scale-105 transition-all">
+          <span class="material-symbols-outlined">explore</span> Explore All Tracking Features
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ FEATURES BENTO ════════════════════ -->
+  <section id="features" class="px-6 max-w-7xl mx-auto space-y-xl reveal">
+    <h2 class="font-headline-lg text-headline-lg text-center">Engineered for Modern Pet Parents</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-md md:h-[600px]">
+      <div class="md:col-span-2 md:row-span-2 bg-primary rounded-lg p-xl text-on-primary flex flex-col justify-end relative overflow-hidden group">
+        <img class="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:scale-105 transition-transform duration-700"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMlqMxGQiARu4ldm2ehTywfFXvT363nNdE7qPQzyhQUeP5_AZz9k0yBaIsFpdv4yVwp3FZePqZ09y2oDlUZx6WwM8FteCFNfRCz-su-LHOlDvoT6uTR4wHiGFO7ZnuE5gv7fVQUfgjevEsrKyDL9cdAgrwZOdKALfadDuswqGg7jE6IIxXj4zLzU5OpqnvCgxp7-hO7W5JclzA9E4_RkYIE6KmoH2JPzEBHHc7EF6nDO7MMp0miG50jzlyGQwHVe4Bl_ey67t3tw"
+          alt="Smart dog collar with glowing teal LED"/>
+        <div class="relative z-10 space-y-md">
+          <span class="material-symbols-outlined text-4xl">biotech</span>
+          <h3 class="font-headline-xl text-headline-xl">Next-Gen GPS</h3>
+          <p class="text-body-lg opacity-80">Hyper-accurate tracking with 5G connectivity and zero dead zones.</p>
+        </div>
+      </div>
+      <div class="md:col-span-2 bg-secondary-container rounded-lg p-xl text-on-secondary-container flex items-center gap-lg">
+        <div class="space-y-sm">
+          <h3 class="font-headline-md text-headline-md">Health Ring</h3>
+          <p class="text-body-md opacity-80">Track heart rate, sleep quality, and active minutes 24/7.</p>
+        </div>
+        <div class="w-32 h-32 flex-shrink-0 relative">
+          <svg class="w-full h-full transform -rotate-90">
+            <circle cx="64" cy="64" fill="transparent" r="50" stroke="rgba(255,255,255,0.2)" stroke-width="12"></circle>
+            <circle class="text-white" cx="64" cy="64" fill="transparent" r="50" stroke="currentColor" stroke-dasharray="314" stroke-dashoffset="80" stroke-linecap="round" stroke-width="12"></circle>
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center font-bold">85%</div>
+        </div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-lg flex flex-col items-center text-center justify-center space-y-sm hover:bg-surface-container-high dark:bg-slate-800 transition-colors">
+        <span class="material-symbols-outlined text-primary text-4xl">eco</span>
+        <h4 class="font-headline-md text-lg">Solar Charging</h4>
+        <p class="text-xs text-on-surface-variant">Infinite battery life with peak-efficiency cells.</p>
+      </div>
+      <div class="bg-surface-container rounded-lg p-lg flex flex-col items-center text-center justify-center space-y-sm hover:bg-surface-container-high dark:bg-slate-800 transition-colors">
+        <span class="material-symbols-outlined text-primary text-4xl">water_drop</span>
+        <h4 class="font-headline-md text-lg">IP68 Waterproof</h4>
+        <p class="text-xs text-on-surface-variant">Mud-proof, swim-proof, adventure-ready.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════════════════════════ FOOTER ════════════════════════════ -->
+<footer class="w-full rounded-t-[3rem] mt-20 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800">
+  <div class="flex flex-col md:flex-row justify-between items-center px-8 py-12 max-w-7xl mx-auto gap-6">
+    <div class="space-y-2 text-center md:text-left">
+      <div class="flex items-center gap-2 justify-center md:justify-start">
+        <span class="material-symbols-outlined text-teal-600 dark:text-teal-400 text-2xl">pets</span>
+        <span class="text-xl font-bold text-teal-600 dark:text-teal-400">PawTrack</span>
+      </div>
+      <p class="font-['Plus_Jakarta_Sans'] text-xs font-medium text-slate-500">© 2024 PawTrack. The Playful Guardian.</p>
+    </div>
+    <div class="flex flex-wrap justify-center gap-8">
+      <a class="font-['Plus_Jakarta_Sans'] text-xs font-medium text-slate-500 hover:text-teal-500 hover:underline transition-all" href="#">Privacy Policy</a>
+      <a class="font-['Plus_Jakarta_Sans'] text-xs font-medium text-slate-500 hover:text-teal-500 hover:underline transition-all" href="#">Terms of Service</a>
+      <a class="font-['Plus_Jakarta_Sans'] text-xs font-medium text-slate-500 hover:text-teal-500 hover:underline transition-all" href="#">Contact Support</a>
+      <a class="font-['Plus_Jakarta_Sans'] text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline transition-all" href="#">Vet Login</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ── Splash screen dismiss ── */
+  (function() {
+    const splash = document.getElementById('splash');
+    // Dismiss after 1.9s (progress bar takes 1.8s + slight buffer)
+    setTimeout(function() {
+      splash.classList.add('hide');
+      setTimeout(function() {
+        splash.style.display = 'none';
+        document.body.style.overflow = '';
+      }, 580);
+    }, 1900);
+    // Lock scroll while splash is showing
+    document.body.style.overflow = 'hidden';
+  })();
+
+  /* ── Dark mode toggle ── */
+  const html       = document.documentElement;
+  const toggleBtn  = document.getElementById('dark-toggle');
+  const darkIcon   = document.getElementById('dark-icon');
+
+  function applyTheme(isDark) {
+    if (isDark) {
+      html.classList.add('dark');
+      darkIcon.textContent = 'light_mode';
+    } else {
+      html.classList.remove('dark');
+      darkIcon.textContent = 'dark_mode';
+    }
+    localStorage.setItem('pawtrack-theme', isDark ? 'dark' : 'light');
+  }
+
+  // Init from saved pref
+  const saved = localStorage.getItem('pawtrack-theme');
+  applyTheme(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches));
+
+  toggleBtn.addEventListener('click', () => {
+    applyTheme(!html.classList.contains('dark'));
+  });
+
+  /* ── Smooth-scroll nav links (already handled by href + html {scroll-behavior:smooth}) ──
+     Also highlight active nav link on scroll */
+  const sections  = document.querySelectorAll('section[id], main > section[id]');
+  const navLinks  = document.querySelectorAll('.nav-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(l => {
+          const active = l.getAttribute('href') === '#' + e.target.id;
+          l.classList.toggle('text-teal-600',  active);
+          l.classList.toggle('dark:text-teal-400', active);
+          l.classList.toggle('border-b-2',    active);
+          l.classList.toggle('border-teal-600', active);
+          l.classList.toggle('pb-1',           active);
+        });
+      }
+    });
+  }, { threshold: 0.4 });
+
+  document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+
+  /* ── Scroll reveal ── */
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+  /* ── Leaflet GIS map — Panabo City, Davao del Norte ── */
+  window.addEventListener('load', () => {
+    const petLat = 7.30845, petLng = 125.68490;
+
+    const map = L.map('pet-map', {
+      center: [petLat, petLng],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    // Custom teal paw marker
+    const pawIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:36px;height:36px;
+        background:#006b5c;
+        border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        border:3px solid white;
+        box-shadow:0 4px 14px rgba(0,107,92,0.5);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <span style="
+          transform:rotate(45deg);
+          font-family:'Material Symbols Outlined';
+          font-size:16px;color:white;
+          font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;
+        ">pets</span>
+      </div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -40]
+    });
+
+    const marker = L.marker([petLat, petLng], { icon: pawIcon }).addTo(map);
+    marker.bindPopup('<b>🐾 Justin</b><br><small>Active · 5 min ago</small>', { closeButton: false }).openPopup();
+
+    // Accuracy circle
+    L.circle([petLat, petLng], {
+      radius: 15,
+      color: '#006b5c',
+      fillColor: '#00bfa5',
+      fillOpacity: 0.15,
+      weight: 2
+    }).addTo(map);
+
+    // Simulated trail path
+    const trail = [
+      [7.30870, 125.68440],
+      [7.30860, 125.68460],
+      [7.30850, 125.68475],
+      [petLat, petLng]
+    ];
+    L.polyline(trail, { color: '#00bfa5', weight: 3, opacity: 0.7, dashArray: '6,4' }).addTo(map);
+  });
+</script>
+</body>
+</html>
